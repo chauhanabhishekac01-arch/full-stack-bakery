@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Order & Payment</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f0f2f5; color: #1c1e21; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        h2 { margin-top: 0; color: #25D366; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
+        .product { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        button { border: none; padding: 12px 20px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: all 0.2s ease; }
+        .btn-add { background: #e7f3ff; color: #1877f2; }
+        .btn-add:hover { background: #dbeafe; }
+        #cart { margin-top: 20px; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px; }
+        .address-section { margin-top: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #444; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; resize: vertical; box-sizing: border-box; }
+        .payment-box { margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; }
+        .btn-pay { background: #3399cc; color: white; width: 100%; padding: 18px; font-size: 1.1em; margin-bottom: 10px; }
+        .btn-whatsapp { background: #25D366; color: white; width: 100%; padding: 18px; font-size: 1.1em; display: none; text-decoration: none; text-align: center; border-radius: 8px; font-weight: bold; }
+        .step-info { display: block; font-size: 0.85em; color: #65676b; margin-bottom: 8px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🛒 Quick Shop</h2>
+    
+    <div class="product"><span>☕ Premium Coffee - ₹500</span><button class="btn-add" onclick="addToCart('Coffee', 500)">Add</button></div>
+    <div class="product"><span>🏺 Designer Mug - ₹350</span><button class="btn-add" onclick="addToCart('Mug', 350)">Add</button></div>
+
+    <div id="cart">
+        <h3>Items In Cart</h3>
+        <div id="cart-items"><p style="color:#888">No items added yet.</p></div>
+        <hr style="border: 0; border-top: 1px solid #ddd;">
+        <p style="font-size: 1.2em;"><strong>Total Amount: ₹<span id="total-price">0</span></strong></p>
+    </div>
+
+    <div class="address-section">
+        <label for="address">📍 Delivery Address:</label>
+        <textarea id="address-input" rows="3" placeholder="Enter your full address (House No, Street, Landmark, City)"></textarea>
+    </div>
+
+    <div class="payment-box">
+        <span class="step-info">Step 1: Pay using any UPI App (GPay/PhonePe/Paytm)</span>
+        <button id="pay-btn" class="btn-pay" onclick="handlePayment()">Pay ₹<span id="pay-total">0</span> via UPI</button>
+        
+        <span class="step-info">Step 2: Share order on WhatsApp after payment</span>
+        <button id="wa-btn" class="btn-whatsapp" onclick="sendWhatsAppOrder()">Send Receipt to WhatsApp</button>
+    </div>
+</div>
+
+<script>
+    let cart = {};
+    let totalAmount = 0;
+
+    // --- UPDATED CONFIGURATION ---
+    const UPI_ID = "chauhan.abhishek.ac01@oksbi"; // Your GPay Number as UPI ID
+    const MERCHANT_NAME = "Abhishek Chauhan";
+    const RAZORPAY_URL = "https://razorpay.me/@abhishekchauhan1817";
+    const WHATSAPP_NUMBER = "917983427187";
+
+    function addToCart(name, price) {
+        if (cart[name]) cart[name].qty += 1;
+        else cart[name] = { price: price, qty: 1 };
+        updateUI();
+    }
+
+    function updateUI() {
+        const container = document.getElementById('cart-items');
+        totalAmount = 0;
+        container.innerHTML = '';
+        for (const id in cart) {
+            const item = cart[id];
+            totalAmount += item.price * item.qty;
+            container.innerHTML += `<p><strong>${id}</strong> x${item.qty} - ₹${item.price * item.qty}</p>`;
+        }
+        if (totalAmount === 0) container.innerHTML = '<p style="color:#888">No items added yet.</p>';
+        document.getElementById('total-price').innerText = totalAmount;
+        document.getElementById('pay-total').innerText = totalAmount;
+    }
+
+    function handlePayment() {
+        const address = document.getElementById('address-input').value.trim();
+        
+        if (totalAmount <= 0) return alert("Please add items to cart!");
+        if (address.length < 5) return alert("Please enter your delivery address.");
+
+        // UPI link with auto-calculated amount
+        const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${totalAmount}&cu=INR&tn=Order_Payment`;
+
+        const start = Date.now();
+        // Try opening UPI apps
+        window.location.href = upiUrl;
+
+        // Fallback to Razorpay if UPI link isn't supported (e.g., on Desktop)
+        setTimeout(() => {
+            if (Date.now() - start < 2000) {
+                window.open(RAZORPAY_URL, '_blank');
+            }
+        }, 1500);
+
+        // Show WhatsApp step
+        document.getElementById('wa-btn').style.display = "block";
+        document.getElementById('pay-btn').innerText = "Try Different Payment Method";
+        document.getElementById('pay-btn').style.background = "#65676b";
+    }
+
+    function sendWhatsAppOrder() {
+        const address = document.getElementById('address-input').value.trim();
+        let msg = `*NEW ORDER CONFIRMATION*\n`;
+        msg += `--------------------------\n`;
+        msg += `💰 *Amount Paid:* ₹${totalAmount}\n`;
+        msg += `📦 *Items:* \n`;
+        for (const id in cart) { msg += `- ${id} (x${cart[id].qty})\n`; }
+        msg += `\n📍 *Address:* ${address}\n`;
+        msg += `--------------------------\n`;
+        msg += `✅ _Payment done via Google Pay/UPI_`;
+        
+        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+</script>
+
+</body>
+</html>

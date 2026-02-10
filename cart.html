@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Basket | Badal Bakery</title>
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self'; 
+    script-src 'self' https://checkout.razorpay.com 'unsafe-inline'; 
+    connect-src 'self' http://localhost:3000 https://lumberjack.razorpay.com https://api.razorpay.com; 
+    img-src 'self' data: https:; 
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+    font-src 'self' https://fonts.gstatic.com; 
+    frame-src https://api.razorpay.com;
+">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=Tangerine:wght@700&family=Marck+Script&display=swap" rel="stylesheet">
+    
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <style>
+        body {
+            background-color: rgb(252, 237, 237);
+            font-family: "DM Sans", sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .cart-container {
+            background: white;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid pink;
+        }
+        h1 {
+            font-family: "Tangerine", cursive;
+            font-size: 4rem;
+            color: #ff0381;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        .cart-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #ffeef4;
+        }
+        .cart-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 15px;
+            border: 1px solid pink;
+        }
+        .item-details {
+            flex-grow: 1;
+            margin-left: 20px;
+        }
+        .item-details h3 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .item-details p {
+            margin: 5px 0 0 0;
+            color: #ff0381;
+            font-weight: bold;
+        }
+        .remove-btn {
+            background: #ffcfe7;
+            border: none;
+            color: red;
+            padding: 8px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .cart-footer {
+            margin-top: 30px;
+            border-top: 2px solid #ff0381;
+            padding-top: 20px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .pay-btn {
+            width: 100%;
+            background-color: #03ff81;
+            color: black;
+            border: none;
+            padding: 15px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 6px 15px rgba(3, 255, 129, 0.3);
+            transition: transform 0.2s;
+        }
+        .pay-btn:active {
+            transform: scale(0.98);
+        }
+        .back-btn {
+            margin-top: 20px;
+            text-decoration: none;
+            color: #ff0381;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Your Basket</h1>
+
+    <div class="cart-container">
+        <div id="cart-content">
+            </div>
+
+        <div class="cart-footer">
+            <div class="total-row">
+                <span>Grand Total:</span>
+                <span>₹<span id="final-amount">0</span></span>
+            </div>
+            <button class="pay-btn" onclick="checkout()">Proceed to Payment</button>
+        </div>
+    </div>
+
+    <a href="index.html" class="back-btn">← Continue Shopping</a>
+
+    <script>
+        // --- 1. CART UI LOGIC ---
+
+        function loadCart() {
+            const cart = JSON.parse(localStorage.getItem('bakeryCart')) || [];
+            const container = document.getElementById('cart-content');
+            const totalDisplay = document.getElementById('final-amount');
+            let total = 0;
+
+            if (cart.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:gray; margin: 40px 0;">Your basket is empty. Add some cakes!</p>';
+                totalDisplay.innerText = "0";
+                return;
+            }
+
+            container.innerHTML = '';
+            cart.forEach((item, index) => {
+                total += item.price;
+                container.innerHTML += `
+                    <div class="cart-item">
+                        <img src="${item.image}" alt="${item.name}">
+                        <div class="item-details">
+                            <h3>${item.name}</h3>
+                            <p>₹${item.price}</p>
+                        </div>
+                        <button class="remove-btn" onclick="removeItem(${index})">Remove</button>
+                    </div>
+                `;
+            });
+            totalDisplay.innerText = total;
+        }
+
+        function removeItem(index) {
+            let cart = JSON.parse(localStorage.getItem('bakeryCart')) || [];
+            cart.splice(index, 1);
+            localStorage.setItem('bakeryCart', JSON.stringify(cart));
+            loadCart();
+        }
+
+        // --- 2. RAZORPAY PAYMENT LOGIC ---
+
+        async function checkout() {
+            const amountText = document.getElementById('final-amount').innerText;
+            const amount = parseFloat(amountText);
+
+            if (amount === 0 || isNaN(amount)) {
+                return alert("Your basket is empty!");
+            }
+
+            try {
+                // Step A: Tell your server to create an order
+                // IMPORTANT: Ensure your Node.js server is running on http://localhost:3000
+                const response = await fetch('http://localhost:3000/create-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: amount }) 
+                });
+
+                if (!response.ok) throw new Error("Could not create order");
+                
+                const order = await response.json();
+
+                // Step B: Configure Razorpay Popup
+                const options = {
+                    "key": "YOUR_RAZORPAY_KEY_ID", // <--- PASTE YOUR KEY HERE
+                    "amount": order.amount, // Amount in paise
+                    "currency": "INR",
+                    "name": "Badal Bakery",
+                    "description": "Freshly Baked Goods",
+                    "order_id": order.id, // This comes from your server
+                    "handler": async function (paymentResponse) {
+                        // Step C: Verify payment signature on your server
+                        const verifyRes = await fetch('http://localhost:3000/verify-payment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(paymentResponse)
+                        });
+
+                        const result = await verifyRes.json();
+
+                        if (result.status === 'success') {
+                            alert("Payment Successful! Your order is being prepared.");
+                            localStorage.removeItem('bakeryCart'); // Clear cart
+                            window.location.href = "index.html";   // Go home
+                        } else {
+                            alert("Payment verification failed. Please contact support.");
+                        }
+                    },
+                    "prefill": {
+                        "name": "Customer Name",
+                        "email": "customer@example.com",
+                        "contact": "9999999999"
+                    },
+                    "theme": {
+                        "color": "#ff0381"
+                    }
+                };
+
+                const rzp = new Razorpay(options);
+                rzp.open();
+
+            } catch (err) {
+                console.error("Checkout Error:", err);
+                alert("Could not connect to the payment server. Make sure your backend is running!");
+            }
+        }
+
+        // Initialize cart on page load
+        window.onload = loadCart;
+    </script>
+</body>
+</html>

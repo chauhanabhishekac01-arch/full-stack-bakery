@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Order & Payment</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f0f2f5; color: #1c1e21; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        
+        h2 { margin-top: 0; color: #25D366; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
+        .product { border-bottom: 1px solid #eee; padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+        
+        button { border: none; padding: 12px 20px; cursor: pointer; border-radius: 8px; font-weight: bold; transition: all 0.2s ease; }
+        .btn-add { background: #e7f3ff; color: #1877f2; }
+        .btn-add:hover { background: #dbeafe; }
+        
+        #cart { margin-top: 20px; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px; }
+        
+        .address-section { margin-top: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #444; }
+        textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; resize: vertical; box-sizing: border-box; }
+        
+        .payment-box { margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; }
+        .btn-pay { background: #3399cc; color: white; width: 100%; padding: 18px; font-size: 1.1em; margin-bottom: 10px; }
+        .btn-whatsapp { background: #25D366; color: white; width: 100%; padding: 18px; font-size: 1.1em; display: none; }
+        
+        .step-info { display: block; font-size: 0.85em; color: #65676b; margin-bottom: 8px; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🛒 Quick Shop</h2>
+    
+    <div class="product"><span>☕ Premium Coffee - ₹500</span><button class="btn-add" onclick="addToCart('Coffee', 500)">Add</button></div>
+    <div class="product"><span>🏺 Designer Mug - ₹350</span><button class="btn-add" onclick="addToCart('Mug', 350)">Add</button></div>
+
+    <div id="cart">
+        <h3>Items In Cart</h3>
+        <div id="cart-items"><p style="color:#888">No items added yet.</p></div>
+        <hr style="border: 0; border-top: 1px solid #ddd;">
+        <p style="font-size: 1.2em;"><strong>Total Amount: ₹<span id="total-price">0</span></strong></p>
+    </div>
+
+    <div class="address-section">
+        <label for="address">📍 Delivery Address:</label>
+        <textarea id="address-input" rows="3" placeholder="Enter your full address (House No, Street, Landmark, City)"></textarea>
+    </div>
+
+    <div class="payment-box">
+        <span class="step-info">Step 1: Complete your payment</span>
+        <button id="pay-btn" class="btn-pay" onclick="openRazorpay()">Pay ₹<span id="pay-total">0</span> via Razorpay</button>
+        
+        <span class="step-info">Step 2: Send order details after paying</span>
+        <button id="wa-btn" class="btn-whatsapp" onclick="sendWhatsAppOrder()">Send Order to WhatsApp</button>
+    </div>
+</div>
+
+<script>
+    let cart = {};
+    let totalAmount = 0;
+    const RAZORPAY_URL = "https://razorpay.me/@abhishekchauhan1817";
+
+    // --- Cart Logic ---
+    function addToCart(name, price) {
+        if (cart[name]) cart[name].qty += 1;
+        else cart[name] = { price: price, qty: 1 };
+        updateUI();
+    }
+
+    function updateUI() {
+        const container = document.getElementById('cart-items');
+        totalAmount = 0;
+        container.innerHTML = '';
+        for (const id in cart) {
+            const item = cart[id];
+            totalAmount += item.price * item.qty;
+            container.innerHTML += `<p><strong>${id}</strong> x${item.qty} - ₹${item.price * item.qty}</p>`;
+        }
+        if (totalAmount === 0) container.innerHTML = '<p style="color:#888">No items added yet.</p>';
+        document.getElementById('total-price').innerText = totalAmount;
+        document.getElementById('pay-total').innerText = totalAmount;
+    }
+
+    // --- Flow Logic ---
+    function openRazorpay() {
+        const address = document.getElementById('address-input').value.trim();
+        
+        if (totalAmount <= 0) return alert("Your cart is empty!");
+        if (address.length < 10) return alert("Please enter a complete delivery address.");
+
+        // Open your specific Razorpay link
+        window.open(RAZORPAY_URL, '_blank');
+
+        // Reveal WhatsApp button
+        document.getElementById('wa-btn').style.display = "block";
+        document.getElementById('pay-btn').style.background = "#ccc";
+        document.getElementById('pay-btn').innerText = "Payment Link Opened";
+    }
+
+    function sendWhatsAppOrder() {
+        const phone = "917983427187";
+        const address = document.getElementById('address-input').value.trim();
+        
+        let msg = "*NEW PAID ORDER*%0a";
+        msg += "--------------------------%0a";
+        msg += `💰 *Total Amount:* ₹${totalAmount}%0a%0a`;
+        msg += "*Items Ordered:*%0a";
+        for (const id in cart) {
+            msg += `- ${id} (x${cart[id].qty})%0a`;
+        }
+        msg += `%0a📍 *Address:*%0a${address}%0a`;
+        msg += "--------------------------%0a";
+        msg += "✅ _I have successfully paid via Razorpay._";
+        
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg.replace(/%0a/g, '\n'))}`, '_blank');
+    }
+</script>
+
+</body>
+</html>
