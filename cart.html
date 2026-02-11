@@ -49,46 +49,85 @@
         }
 
         .cart-item img {
-            width: 60px; height: 60px; object-fit: cover; border-radius: 12px;
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 12px;
         }
 
-        .item-details { flex-grow: 1; margin-left: 15px; }
+        .item-details {
+            flex-grow: 1;
+            margin-left: 15px;
+        }
+
         .item-details h3 { margin: 0; font-size: 1rem; }
         .item-details p { margin: 4px 0 0; color: #666; }
 
         .remove-btn {
-            background: none; border: none; color: #ff4d4d;
-            cursor: pointer; font-weight: bold; font-size: 1.2rem;
+            background: none;
+            border: none;
+            color: #ff4d4d;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.2rem;
         }
 
-        .total-row {
-            display: flex; justify-content: space-between; font-size: 1.4rem;
-            font-weight: bold; margin: 20px 0; padding-top: 15px;
-            border-top: 2px solid var(--primary-pink);
-        }
-
-        /* Form Styles */
-        .order-form { display: flex; flex-direction: column; gap: 15px; margin-top: 10px; }
-        
-        label { font-weight: bold; color: var(--primary-pink); font-size: 0.9rem; }
-
-        input {
-            width: 100%; padding: 12px; border-radius: 12px;
-            border: 1px solid #ddd; box-sizing: border-box; font-family: inherit;
+        /* Map Container */
+        #map { 
+            height: 300px; 
+            width: 100%; 
+            border-radius: 15px; 
+            margin: 15px 0; 
+            border: 2px solid #ffdae9;
         }
 
         .gps-btn {
-            background-color: #fce4ec; color: var(--primary-pink); border: 2px dashed var(--primary-pink);
-            padding: 10px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s;
+            background-color: white;
+            border: 2px solid var(--primary-pink);
+            color: var(--primary-pink);
+            padding: 10px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            width: 100%;
         }
 
-        .gps-btn:hover { background-color: var(--primary-pink); color: white; border-style: solid; }
+        input#address { 
+            width: 100%; 
+            padding: 15px; 
+            box-sizing: border-box; 
+            border-radius: 12px; 
+            border: 1px solid #ddd; 
+            background: #fff;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 2px solid var(--primary-pink);
+        }
 
         .whatsapp-btn {
-            width: 100%; background-color: var(--whatsapp-green); color: white;
-            border: none; padding: 18px; border-radius: 50px; font-size: 1.1rem;
-            font-weight: bold; cursor: pointer; display: flex; align-items: center;
-            justify-content: center; gap: 10px; margin-top: 10px;
+            width: 100%;
+            background-color: var(--whatsapp-green);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
     </style>
 </head>
@@ -104,30 +143,28 @@
             <span>₹<span id="final-amount">0</span></span>
         </div>
 
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-
-        <div class="order-form">
-            <label>Customer Name</label>
-            <input type="text" id="cust-name" placeholder="Enter your full name">
-
-            <label>Delivery Address</label>
-            <button class="gps-btn" onclick="useGPS()">📍 Get Current Location via GPS</button>
-            <textarea id="address" rows="3" style="width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; font-family: inherit;" placeholder="Manual address or use GPS button above..."></textarea>
-            
-            <button class="whatsapp-btn" onclick="sendWhatsAppOrder()">
-                Order on WhatsApp
-            </button>
-        </div>
+        <h3 style="margin-top:25px; color: var(--primary-pink); text-align: center;">Pin Delivery Location</h3>
+        
+        <button class="gps-btn" onclick="useGPS()">📍 Auto-Locate Me (GPS)</button>
+        
+        <div id="map"></div>
+        
+        <label style="font-size: 0.8rem; color: var(--primary-pink); font-weight: bold;">Fished Address:</label>
+        <input type="text" id="address" placeholder="Pin location or tap map..." readonly>
+        
+        <button class="whatsapp-btn" onclick="sendWhatsAppOrder()">
+            Confirm Order on WhatsApp
+        </button>
     </div>
 
-    <a href="index.html" style="margin:20px 0; color:var(--primary-pink); text-decoration:none; font-weight:bold;">← Back to Menu</a>
-
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBbYi6vPehy-WZbmCgWBQkP2Jll1nFkmgQ"></script>
+    <a href="index.html" style="margin-top:20px; color:var(--primary-pink); text-decoration:none; font-weight:bold;">← Continue Shopping</a>
 
     <script>
-        let selectedCoords = "";
+        let map, marker, geocoder;
+        let selectedLat = null;
+        let selectedLng = null;
 
-        // Load basket
+        // Load Basket Items
         function loadCart() {
             const cart = JSON.parse(localStorage.getItem('bakeryCart')) || [];
             const container = document.getElementById('cart-content');
@@ -135,7 +172,7 @@
             let total = 0;
 
             if (cart.length === 0) {
-                container.innerHTML = '<p style="text-align:center; color:#999;">Basket is empty!</p>';
+                container.innerHTML = '<p style="text-align:center; color:#999;">Your basket is empty!</p>';
                 totalDisplay.innerText = "0";
                 return;
             }
@@ -163,59 +200,82 @@
             loadCart();
         }
 
-        // GPS & Geocoding Logic
-        function useGPS() {
-            const addressBox = document.getElementById('address');
-            addressBox.placeholder = "Locating you...";
+        // Initialize Map
+        function initMap() {
+            const defaultLoc = { lat: 30.4599, lng: 78.0934 }; // Landour
+            
+            // Map uses the Map Key from the script tag below
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 15,
+                center: defaultLoc,
+                mapTypeControl: false
+            });
 
+            marker = new google.maps.Marker({
+                map: map,
+                draggable: true,
+                position: defaultLoc
+            });
+
+            // Geocoder uses the "GPS Key" logic
+            geocoder = new google.maps.Geocoder();
+
+            map.addListener("click", (e) => {
+                updateLocation(e.latLng);
+            });
+
+            marker.addListener("dragend", () => {
+                updateLocation(marker.getPosition());
+            });
+        }
+
+        function updateLocation(latLng) {
+            marker.setPosition(latLng);
+            selectedLat = latLng.lat();
+            selectedLng = latLng.lng();
+            
+            // This is the Geocoding part (Key 2)
+            geocoder.geocode({ location: latLng }, (results, status) => {
+                if (status === "OK" && results[0]) {
+                    document.getElementById('address').value = results[0].formatted_address;
+                } else {
+                    document.getElementById('address').value = "Coordinates: " + selectedLat + ", " + selectedLng;
+                }
+            });
+        }
+
+        function useGPS() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((pos) => {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    selectedCoords = `${lat},${lng}`;
-
-                    // Convert Coordinates to Text Address
-                    const geocoder = new google.maps.Geocoder();
-                    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-                        if (status === "OK" && results[0]) {
-                            addressBox.value = results[0].formatted_address;
-                        } else {
-                            addressBox.value = "GPS Found! (Coords: " + selectedCoords + ")";
-                        }
-                    });
-                }, () => {
-                    alert("GPS access denied. Please type your address manually.");
-                    addressBox.placeholder = "Manual address...";
+                    const userPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    map.setCenter(userPos);
+                    updateLocation(new google.maps.LatLng(userPos.lat, userPos.lng));
                 });
             }
         }
 
         function sendWhatsAppOrder() {
             const cart = JSON.parse(localStorage.getItem('bakeryCart')) || [];
-            const name = document.getElementById('cust-name').value;
             const address = document.getElementById('address').value;
             const total = document.getElementById('final-amount').innerText;
 
-            if (!name || !address) return alert("Please enter your name and address!");
-            if (cart.length === 0) return alert("Your basket is empty!");
+            if (cart.length === 0 || !selectedLat) {
+                alert("Please add items and select your delivery location!");
+                return;
+            }
 
             const phone = "917983427187";
-            let msg = `*🧁 NEW ORDER: BADAL BAKERY*\n`;
-            msg += `*Customer:* ${name}\n`;
-            msg += `------------------------------\n`;
+            let msg = `*🧁 NEW ORDER: BADAL BAKERY*\n------------------------------\n`;
             cart.forEach((item, i) => msg += `${i+1}. *${item.name}* - ₹${item.price}\n`);
-            msg += `------------------------------\n`;
-            msg += `*Total: ₹${total}*\n\n`;
-            msg += `*📍 Address:* ${address}\n`;
-            
-            if(selectedCoords) {
-                msg += `\n*🗺️ Exact Location:* http://maps.google.com/maps?q=${selectedCoords}`;
-            }
+            msg += `------------------------------\n*Total: ₹${total}*\n\n*📍 Address:* ${address}\n\n`;
+            msg += `*🗺️ Location:* https://developers.google.com/maps/documentation/address-validation/overview2{selectedLat},${selectedLng}`;
 
             window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
         }
 
         window.onload = loadCart;
     </script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBDkagSXU7i_a7uAnH4r8LdDW_uiBJnl00&callback=initMap" async defer></script>
 </body>
 </html>
